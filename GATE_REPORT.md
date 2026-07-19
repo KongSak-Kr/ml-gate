@@ -1,17 +1,74 @@
-# GATE REPORT
+# GATE REPORT — 2026-07-18 (Opus 모드 O)
 
-**[2026-07-18 · main 056703a]**
+## ★ R2 인라인 colorRuns (진행 중, 브랜치 `feat/r2-inline-colorruns`, main 병합 금지)
 
-## 상태
-눈확인 3건 진행 중. 서버 = `fix/card-open-correct-page` 빌드로 http://localhost:3000 (200).
+색 강조를 별도 span 조각(R1) → **문단 안 인라인 colorRuns** 로 갈아엎기(사용자 R2 승격 확정, parentId 기각).
+설계·Phase 계획 = `plans/2026-07-18-r2-implementation-design.md`(Claude+Sol 대조 → Sol 마스터 스펙 채택).
+완성 후 **최종 눈확인 1회**가 유일 게이트. 사전 판정 원칙으로 갈림길 자율(오착색<색벗김 / 마이그레이션 보존·보류 / UX 흐름유지·조각소멸 / 색만 YAGNI).
 
-## 완료 (main 반영)
-- 카드 모드 CRITICAL #5(OCR.space 에러 표면화)·#4(배치 세션 바인딩) 수정+가드, 279 그린.
-- 근본 진단 핸드오프: `docs/superpowers/HANDOFF_관계스키마_부재.md`.
+- **Phase 0 ✅** 설계+대조+합의(`1a69d4c`).
+- **Phase 1 ✅** 스키마(ColorRun/colorRuns) + `colorRuns.ts`(normalize/runFragments) + wordBox 다줄 + 기본 렌더(에디터+내보내기) + cloneRegions. 가드 `colorruns.spec` 11. **309 그린 + 빌드**(`d160602`). R1 잠정 유지.
+- **Phase 2 🔵(코어 완료)** setColorRun 계약 + setRegionText 재매핑(오착색<색벗김) + 번역 clear + colorRunNotices. 가드 `colorruns-edit`(7)+`colorruns-store`(6). **322 그린 + 빌드**(`70b5eba`).
+  - **번역 clear 도달성 확인**(사용자 요청): "자동 번역"·카드 번역이 기번역 영역을 재번역(전면교체)해 색 강조를 지우는 경로 = **사용자 도달 가능** 확인 → 재번역 전 지워질 색 강조 **개수 명시 확인 다이얼로그** 추가(양 경로), 취소=보존. 가드 `translate-colorrun-warning`(2). **324 그린 + 빌드**(`25b332c`).
+  - **남은 하위**: 클립 렌더 하드닝 + 에디터↔내보내기 픽셀 패리티 + notices UI 패널 + ingress 정규화 검증.
+- **Phase 3 ✅(331 그린 + 빌드, `d7bb603`)** 로드 경계 span→colorRun 마이그레이션(`migrateColorSpans`, 텍스트 유일-일치 추론) + persistent `conversionHolds`(WorkSession 왕복) + 앰버 보류 배너(`ColorSpanHoldBanner`, 에디터·카드) 수동 삭제. 애매/무매치는 조용히 버리지 않고 보류(사전 원칙). 가드 `colorruns-migration`(7). scale-stress 를 colorRuns 로 전환. **R1 span 생성 UI 는 잠정 공존**(로드 시에만 변환).
+- **Phase 4 ✅(329 그린 + 빌드)** UX 컷오버 + R1 전면 제거 완료. 3 컷오버(각 전체 회귀 그린 후 진행):
+  - **컷오버 1**(`60aea2a` 다음, 329): TextStylePanel `setColorRun`(조각 없이 문단 안 즉시 색 변경 + "색 제거" 버튼=base색 적용) + RegionListPanel "다색 N" 뱃지(span 행/토글 삭제). 구 UI 스펙 재작성(partial-color-span→colorruns-ux, colorspan-list-collapse→colorruns-list-badge).
+  - **컷오버 2**(328): store `addColorSpan`·`Region.isColorSpan`·`textNodeRegistry.ts` 삭제, mask `isInpaintBackground` 제거(전 region 배경, locked 만 제외), useOcr 경고 colorRuns 총수. 구 span 스펙 5종 colorRuns 로 승계/구조적 소멸 근거 DECISIONS 기록.
+  - **컷오버 3**(329): 로드 경계 colorRuns 정규화(malformed→canonical) + DECISIONS.
+  - **미착수(후속 후보, 조용한 소실 아님)**: 렌더 클립 하드닝(아래 커닝 드리프트 눈확인 후 판단), notices UI 패널(편집/번역 경로엔 개수 명시 다이얼로그 존재).
 
-## 판단 요청
-- 눈확인 3건 순서대로 pass/fail (①card-open-correct-page → ②card-batch-autosave → ③colorspan-list-collapse[B+C]).
-- #3(새 세션 시작이 무엇을 리셋하는가) 정책 결정 — 상세 `docs/superpowers/CARD_MODE_REVIEW_2026-07-16.md`.
+## ★ R2 눈확인 준비됨 — 체크리스트 (feat/r2-inline-colorruns, R2 프로덕션 빌드)
 
-## 다음
-①번 눈확인 통과 시 병합+push → ②로 서버 전환. #3는 정책 수신 후 착수.
+> 게이트 = 아래 통과 시 main 병합 판단. 하나라도 이상하면 그 항목만 판단요청으로.
+
+1. **인라인 색 적용(조각 없음)**: 영역 선택 → 편집칸 번역문에서 단어 드래그 → 색 선택(스와치/픽커) → "선택 단어 색 강조". 새 조각/드래그 없이 그 단어만 색이 바뀌고 문단 흐름(줄바꿈·정렬) 그대로인가.
+2. **색 변경**: 이미 색 있는 단어를 다시 다른 색으로 강조 → 즉시 새 색으로 교체되는가(중복/잔색 없이).
+3. **색 제거**: 색 있는 단어 선택 → "색 제거" → 기본색으로 돌아가고 나머지 색 구간은 보존되는가.
+4. **★커닝 드리프트(클립 렌더 하드닝 판정용)**: 색 글자와 주변 검정 글자의 **간격·정렬이 자연스러운지** — 색 경계에서 글자가 겹치거나(overlap) 벌어지는(gap) 현상이 없는지. 확대해서 색 단어 앞뒤 이음새를 본다. 드리프트가 보이면 = 클립 기반 풀텍스트 클론 렌더로 하드닝 필요(합의안 §1). 자연스러우면 = 현 스택드 프래그먼트 유지.
+5. **목록 뱃지**: RegionList 부모 행에 "다색 N"(색 구간 수) 뱃지가 뜨고, 별도 span 행/접기 토글이 없는가.
+6. **내보내기 일치**: 내보낸 PNG/PDF 의 색 강조가 화면과 동일 위치·색인가(에디터↔내보내기 동형).
+7. **편집 재매핑**: 색 단어 뒤/앞 텍스트를 편집 → 색이 엉뚱한 글자로 옮겨가지 않는가(어긋나면 그 색만 벗겨지고 알림). 번역문 앞부분 삽입 시 색 구간이 따라 밀리는가.
+8. **재번역/재-OCR 경고**: 색 있는 영역 재번역("자동 번역")·재OCR 시 "색 강조 N곳 사라짐" 개수 명시 확인 다이얼로그가 뜨고 취소=보존인가.
+9. **마이그레이션 보류 배너**: 구 R1 span 세션 로드 시 자동 변환 + 애매/무매치는 앰버 배너("색 강조 변환 검토 N개")로 표면화되는가.
+10. **인페인트**: 색 강조 있는 영역 전체 재생성 → 색 단어 아래 원문 픽셀도 함께 지워져 원문 비침이 없는가.
+
+> 아래는 R2 이전(main) 밤샘 배치 상태 — main 은 `da1bbb6` 그대로(R2 미병합).
+
+---
+
+# GATE REPORT — 2026-07-18 밤샘 auto 배치 (Opus 모드 O)
+
+**상태**: main = `91c2c4f`(③·(a) 병합 포함, 눈확인 브랜치 전부 소진), origin 동기, 병합 후 회귀 그린(298 통과)+빌드. **서버 = main 프로덕션 빌드(:3000) 가동 중 = "ㄱ 준비됨"**.
+
+## 아침 판정 완료 (2026-07-18 아침)
+1. ✅ 자율 병합 임시 브랜치 4개 삭제(-d, main 완전 병합 확인): session-type-routing-gate·vision-surface-processing-errors·legacy-roletier-normalize·scale-stress-harness.
+2. ✅ ③ `feat/colorspan-list-collapse`(B+C) 눈확인 통과 → `--no-ff` 병합(RegionListPanel roleTier `!= null` 자동 해소·검증) → 회귀 294 그린 → push → 브랜치 삭제.
+3. ✅ (a) `fix/new-project-reset-confirm` 눈확인 통과 → e2e 로 관찰 두 갈림 판정(Test A: 취소는 store 무해 / Test B: 재진입 re-hydrate 는 main 에도 있던 기존 동작) → `--no-ff` 병합 → 회귀 298 그린 → push → 브랜치 삭제. 가드 `tests/a-cancel-and-rehydrate.spec.ts`.
+4. 카드 브랜치 2개(`fix/card-batch-autosave`·`fix/card-open-correct-page`) 계속 보류(카드 실파일 확보 후 눈확인).
+- 관찰 기록(수정 안 함, `USAGE_ROUND_2026-07-14.md`): (i) "번역된 영역 11/10" cosmetic(span 이 분자만, parentId 파생배제 때 일괄) (ii) **re-hydrate 미저장 소실 = 완주 지뢰 후보**(dirty 세션 재진입 시 IndexedDB 저장본이 in-memory 덮음, 기존 동작, 완주 빈도 관찰 후 판단).
+
+## 템플릿 리뷰 MAJOR 3건 (증상 + 제안, ③·(a) 후 정리 — 판정은 완주 후)
+- **#2 span→템플릿 payload 오염**: 증상 = `buildTemplatePayload`/`deriveSizeSet` 가 색 span(isColorSpan)을 세어 counts·bodyIndex 왜곡(예 [5,4]→bodyIndex 0) → 본문-only 문서에 30px 오적용. 제안 = 모든 파생을 `!isColorSpan` 로 필터(parentId 패키지에 동시 포함).
+- **#3 span tier stranding**: 증상 = reflow/템플릿이 부모 tier 변경 시 span 이 옛 tier 에 고립(size/family 어긋남, 저장 영속). 제안 = parentId + `syncColorSpans`(부모 변경 후 자식이 tier/typography 추종, color 보존).
+- **#4 busy 중 저장**: 증상 = 멀티페이지 OCR/번역/인페인트 진행 중 Save 가 활성이라 중간 스냅샷을 "성공"으로 영속(부분 처리 상태 + 빈 undo). 제안 = busy 중 SaveControls 잠금(writer-lock) 또는 저장 시 busy 확인.
+
+## 완료 (자율 병합 + push — 검증선 통과, 브랜치는 삭제됨)
+1. **#3 (b)+(c) 세션 경계** → main: openSession 이 type 으로 라우팅(카드=/cards) + 저장 직전 크로스모드 type 게이트(CrossModeSaveError 표면화). `tests/session-boundary.spec.ts` 4건.
+2. **Vision wipe (#5 부류·문서 모드)** → main: Vision 200+`responses[].error` 를 던져 페이지 wipe 방지. `OcrProcessingError` 공통화. `tests/vision-adapter.spec.ts` +2.
+3. **레거시 roleTier 손상(Sol 리뷰 #5)** → main: 로드 시 roleTier=null 정규화 + 필터 `!= null` 방어(setTierFont(undefined) 전 페이지 폰트 덮어씀 차단). `tests/legacy-roletier.spec.ts`.
+4. **스케일 스트레스 하네스** → main: 40p×25+span60 전 파이프라인 불변식+수치. `tests/scale-stress.spec.ts`.
+
+## 보류 (눈확인 게이트 — 병합 금지, 판정 후 --no-ff)
+- **`fix/new-project-reset-confirm`** (신규, 이번 배치): #3 (a) — "새 프로젝트" 클릭 시 잔존 세션 확인 후 리셋(window.confirm). 285 그린. `tests/new-project-reset.spec.ts` 2건. ★첫 mount-effect 방식이 테스트 레이스 유발 → DashboardScreen 클릭 지점으로 이동해 해소(DECISIONS 상세).
+- **기존 보류 3건**(2026-07-16~17, 이제 main 보다 9+ 커밋 뒤): `feat/colorspan-list-collapse`(B+C), `fix/card-batch-autosave`(#1), `fix/card-open-correct-page`(#2). 각 판정 통과 시 병합(3-way, 파일 분리라 충돌 예상 안 됨).
+
+## 판단 요청 (아키텍처/설계 — 밤샘 단독 재설계 금지로 기록만)
+- **parentId vs R2 결정**: `plans/2026-07-18-parentId-vs-R2-design.md` — 추천 **Option A(parentId)**, 뒤집는 데이터 = **OP2(한 부모 2+색 흔함)**. 완주 관찰 3포인트 매핑 완료 → 데이터 오면 즉시 결정.
+- **템플릿 리뷰 잔여 MAJOR 3건**: 위 "템플릿 리뷰 MAJOR 3건" 섹션 참조(#2 payload 오염 / #3 stranding / #4 busy 저장). #2·#3 은 parentId 패키지, #4 는 writer-lock. 판정은 완주 후.
+- **에러 정책(기록)**: generic provider 에러→Mock 폴백이 실데이터 덮음 / 빈 정상 OCR→기존작업 카드 wipe / export 에러 UI 미표면화.
+
+## 다음 (아침 ㄱ 이후)
+1. 보류 4브랜치 눈확인 → 병합 판정.
+2. 실사용 완주(설정집 5p~끝) 재개 → OP1/OP2/OP3 관찰 로그(`USAGE_ROUND_*.md`) → parentId/R2 확정.
+3. 위생 후속: ReflowControls React key 경고 원인 규명(현재 cosmetic, 모든 .map key 보유해 불명).
