@@ -8,7 +8,11 @@
 - **3계층**: `BasicFillProvider`(색블록·기본·무료) < `MiganOnnxProvider`(MI-GAN, 토글·무료) < `CloudEraseProvider`(ClipDrop, BYOK). 각 단계 실패 시 아래로 **라벨 붙인 명시적 폴백**.
 - **★프로토타입 실증(사용자 눈확인, 실물 격자 스캔)**: MI-GAN이 색블록 대비 **격자 생존 vs 회색 얼룩+격자 소실**로 확연 우위. **수치 합격** = 풀페이지 1973×1451 **WebGPU 추론 567ms**, 세션 ~1.0s, 모델 26.8MB. 스파이크 = `spike-inpaint/`(브랜치 `spike/inpaint-migan-prototype`).
 - **본구현 반영 발견 2건**: (1) **MI-GAN 마스크 극성 반전 필수**(0=제거/255=보존, 앱 `buildMask`와 반대). (2) **마스크는 글자 경계 넉넉히 덮을 것**(테두리 잔존 시 GAN이 글자 재생성) — 프로덕션 `buildMask`는 bbox-full이라 자연 충족.
-- **본구현 Phase**: T0 개명(BasicFillProvider) → T1(MiganOnnxProvider, 마스크 반전+커버리지 규칙+실패 라벨 폴백, 모델 캐시·진행률·발견성 힌트) → T2(ClipDrop BYOK 무상태 프록시). 스펙 조건 10건, Phase별 검증선(테스트 그린+빌드) + GATE 갱신. **T1 완성 시 실물 눈확인 1회.**
+- **본구현 진행**(브랜치 `feat/inpaint-tiers`):
+  - **T0 ✅** `MockInpaintProvider`→`BasicFillProvider` 개명(빌드 통과, `adefc86`).
+  - **T1 ✅ 코드 완료(눈확인 대기)** — `MiganOnnxProvider`(onnxruntime-web WebGPU→WASM, **마스크 극성 반전**), 모델 Cache Storage 1회 다운로드+진행률, `TieredInpaintProvider` 폴백+라벨, 고품질 지우개 토글·발견성 힌트, MI-GAN 크레딧(NOTICE). **검증선 통과: 336 그린 + 빌드**(`2c64320`). 단위 테스트 신규 5(반전·roundtrip·폴백·전부실패·모델캐시). **→ 실물 눈확인 1회 대기**(서버 :3000 가동).
+  - **T2 ⬜** ClipDrop BYOK 무상태 프록시(다음).
+- 스펙 조건 10건 반영, Phase별 검증선(그린+빌드) + GATE 갱신(고정 URL).
 - **T2=ClipDrop Cleanup**(erase형, 저환각). generative 배제. 무상태 프록시(키 헤더 전용·미저장·로그 위생), 에러 크게 표면화. Stability=2순위.
 
 > **채널 무결성(2026-07-19 확정·해결)**: push 정상(로컬==원격). 게이트가 옛 보고에 멈춘 원인 = `/main/` raw URL 반복조회가 **첫 결과 캐시에 고정**. 해결 = 매 push마다 **커밋 고정 raw URL** 발급(캐시 우회). 완료 정의 = push + ls-remote 해시 + 고정 URL.
