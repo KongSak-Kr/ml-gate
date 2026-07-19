@@ -1,17 +1,17 @@
 # GATE REPORT — 2026-07-19 (Opus 모드 O)
 
-## ★★ 인페인팅 서비스화 3계층 — 설계 확정·프로토타입 착수 (2026-07-19)
+## ★★ 인페인팅 서비스화 3계층 — 프로토타입 조건부 통과·본구현 착수 (2026-07-20)
 
-서비스화 전제(타 사용자 대상)로 인페인팅을 **무료 기본 + BYOK 2단(+실패 폴백)** 재설계. 조사→설계 완료, 사용자 승인(조건 10건 반영), **1페이지 프로토타입 단계**.
+서비스화 전제로 인페인팅을 **무료 기본 + BYOK 2단(+실패 폴백)** 재설계. 조사→설계→프로토타입 **게이트 조건부 통과** → 본구현 착수.
 
-- **설계 스펙**: `docs/superpowers/specs/2026-07-19-inpainting-service-tiers-design.md` (MurderLab repo, commit `7c420ad`).
-- **3계층**: `BasicFillProvider`(색블록·기본·무료) < `MiganOnnxProvider`(MI-GAN, 토글·무료) < `CloudEraseProvider`(ClipDrop, BYOK). 각 단계 실패 시 아래로 **라벨 붙인 명시적 폴백**(조용한 폴백 금지).
-- **T1=MI-GAN** (MIT, ONNX 28MB, WebGPU→WASM). big-lama·MAT는 비상업 라이선스로 탈락. Places2 잔여 리스크 감수(Picsart 명시 MIT 부여로 방어), 교체=설정 수준(문제 시 즉시 색블록 강등), 배포물 크레딧 표기.
-- **T2=ClipDrop Cleanup**(erase형, 저환각). generative fill(Firefly/OpenAI/Imagen) 배제=환각 위험. **무상태 프록시**(키 헤더 전용·서버 미저장·로그 위생 가드), BYOK 에러 크게 표면화(키무효/크레딧소진/업스트림 구분). Stability Erase=2순위 기록.
-- **기존 불변식 재사용**: `InpaintProvider`·팩토리·`originalCanvas` 정합·배치 진행률·프로바이더 라벨 — **호출부 무변경**.
-- **판정 대기(사용자 게이트)**: 프로토타입 = **실물 설정집 페이지(격자 배경)**로 현행 색블록 vs MI-GAN 전후 비교(합성 검증 금지). 판정 기준 = 격자선 관통 연속성 / 번짐·얼룩 아티팩트 / 색블록 대비 육안 우위 + 수치(다운로드 용량·시간, 페이지당 추론 시간, 폴백 발생). 스파이크는 브랜치, 눈확인 통과 후 본 구현.
+- **설계 스펙**: `docs/superpowers/specs/2026-07-19-inpainting-service-tiers-design.md` (프로토타입 실증 §5.7 반영).
+- **3계층**: `BasicFillProvider`(색블록·기본·무료) < `MiganOnnxProvider`(MI-GAN, 토글·무료) < `CloudEraseProvider`(ClipDrop, BYOK). 각 단계 실패 시 아래로 **라벨 붙인 명시적 폴백**.
+- **★프로토타입 실증(사용자 눈확인, 실물 격자 스캔)**: MI-GAN이 색블록 대비 **격자 생존 vs 회색 얼룩+격자 소실**로 확연 우위. **수치 합격** = 풀페이지 1973×1451 **WebGPU 추론 567ms**, 세션 ~1.0s, 모델 26.8MB. 스파이크 = `spike-inpaint/`(브랜치 `spike/inpaint-migan-prototype`).
+- **본구현 반영 발견 2건**: (1) **MI-GAN 마스크 극성 반전 필수**(0=제거/255=보존, 앱 `buildMask`와 반대). (2) **마스크는 글자 경계 넉넉히 덮을 것**(테두리 잔존 시 GAN이 글자 재생성) — 프로덕션 `buildMask`는 bbox-full이라 자연 충족.
+- **본구현 Phase**: T0 개명(BasicFillProvider) → T1(MiganOnnxProvider, 마스크 반전+커버리지 규칙+실패 라벨 폴백, 모델 캐시·진행률·발견성 힌트) → T2(ClipDrop BYOK 무상태 프록시). 스펙 조건 10건, Phase별 검증선(테스트 그린+빌드) + GATE 갱신. **T1 완성 시 실물 눈확인 1회.**
+- **T2=ClipDrop Cleanup**(erase형, 저환각). generative 배제. 무상태 프록시(키 헤더 전용·미저장·로그 위생), 에러 크게 표면화. Stability=2순위.
 
-> **채널 무결성 메모(2026-07-19)**: ml-gate push는 정상(로컬==원격). 게이트가 stale `056703a`(GATE_REPORT 부재 시점 커밋)를 읽는 건 push 문제 아님 → 게이트 raw URL이 커밋 고정 permalink이거나 엉뚱한 경로일 가능성(사용자 확인 필요). 이후 "ml-gate 갱신됨" 보고 완료 정의 = `git ls-remote origin main` 해시 동반.
+> **채널 무결성(2026-07-19 확정·해결)**: push 정상(로컬==원격). 게이트가 옛 보고에 멈춘 원인 = `/main/` raw URL 반복조회가 **첫 결과 캐시에 고정**. 해결 = 매 push마다 **커밋 고정 raw URL** 발급(캐시 우회). 완료 정의 = push + ls-remote 해시 + 고정 URL.
 
 ## ★★ R2 인라인 colorRuns — 눈확인 통과·main 병합 완료 (2026-07-19)
 
