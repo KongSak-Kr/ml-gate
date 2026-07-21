@@ -10,8 +10,8 @@
 - **본구현 반영 발견 2건**: (1) **MI-GAN 마스크 극성 반전 필수**(0=제거/255=보존, 앱 `buildMask`와 반대). (2) **마스크는 글자 경계 넉넉히 덮을 것**(테두리 잔존 시 GAN이 글자 재생성) — 프로덕션 `buildMask`는 bbox-full이라 자연 충족.
 - **본구현 진행**(브랜치 `feat/inpaint-tiers`):
   - **T0 ✅** `MockInpaintProvider`→`BasicFillProvider` 개명(빌드 통과, `adefc86`).
-  - **T1 🔧 눈확인 1차 불통과→수정(재확인 대기)** — 1차: 진행률 없이 순식간+흰 패치 = **조용한 폴백**(MI-GAN 미실행). **근본원인 재현·확정**: `numThreads=1` → onnxruntime-web 이 **asyncify wasm 빌드** 요구하나 `public/ort/` 에 `asyncify.*` 누락 → 404 → 세션 실패. **수정**: (a) `scripts/copy-ort-runtime.mjs`(prebuild)로 전 변형 복사 자동화(재발 방지), (b) 폴백 사유·**실제 실행 엔진 라벨** UI 표면화(스펙 위반 2건), (c) 회귀 가드 `inpaint-fallback-surface`(실브라우저 강제실패→UI 사유). **검증: migan 성공경로 재현(label=migan) + 337 그린 + 빌드**(`751bc66`). **→ 재눈확인 대기**(서버 :3000 최신빌드). 기대: 첫 실행 다운로드 진행률 / 페이지당 ~1초(WebGPU) / 지운 자리 격자 복원.
-  - **T2 ⬜** ClipDrop BYOK 무상태 프록시(다음).
+  - **T1 ✅ 눈확인 통과·main 병합** — MI-GAN(마스크 반전·모델 캐시·진행률·토글·힌트·크레딧) + `TieredInpaintProvider` 폴백. **1차 불통과(조용한 폴백)=근본원인 asyncify wasm 누락** → prebuild 복사 자동화(`scripts/copy-ort-runtime.mjs`) + 폴백 사유·실제 엔진 라벨 UI 표면화 + 회귀 가드 `inpaint-fallback-surface`. **재눈확인 통과**(지운 자리 격자 질감 연속, MI-GAN 라벨=실행 증거, 폴백 문구 없음). **main `--no-ff` 병합**(`fc67aed`, **337 그린 + 빌드**, origin push).
+  - **T2 ⬜ 다음 착수** — ClipDrop BYOK 무상태 프록시. **컨텍스트**: 계획 `docs/superpowers/plans/2026-07-20-inpainting-tiers-implementation.md` Phase T2(Task 2.1~2.5), 스펙 §6·§7. 구현: `ByokKeyStore`(localStorage, `Capability='inpaint'`) → `CloudEraseProvider`(ClipDrop `x-api-key`, 에러 매핑 키무효/크레딧소진/업스트림) → 무상태 프록시 `src/app/api/inpaint-cloud/route.ts`(**헤더 키·서버 미저장·로그 위생 가드**, Next 16 라우트는 `node_modules/next/dist/docs` 확인) → `ByokSettings` UI(정직 문구·발급 링크) → 팩토리에 clipdrop 티어 **최상위** 추가(키 있을 때). Stability=2순위 기록만. 테스트=UI/store seam(`devSeams __inpaint`). BYOK 에러는 특히 크게 표면화(사용자 돈). **feat 브랜치에서 TDD, Phase 검증선(그린+빌드) 후 GATE 갱신·병합.**
 - 스펙 조건 10건 반영, Phase별 검증선(그린+빌드) + GATE 갱신(고정 URL).
 - **T2=ClipDrop Cleanup**(erase형, 저환각). generative 배제. 무상태 프록시(키 헤더 전용·미저장·로그 위생), 에러 크게 표면화. Stability=2순위.
 
