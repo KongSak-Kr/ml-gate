@@ -10,7 +10,7 @@
 - **본구현 반영 발견 2건**: (1) **MI-GAN 마스크 극성 반전 필수**(0=제거/255=보존, 앱 `buildMask`와 반대). (2) **마스크는 글자 경계 넉넉히 덮을 것**(테두리 잔존 시 GAN이 글자 재생성) — 프로덕션 `buildMask`는 bbox-full이라 자연 충족.
 - **본구현 진행**(브랜치 `feat/inpaint-tiers`):
   - **T0 ✅** `MockInpaintProvider`→`BasicFillProvider` 개명(빌드 통과, `adefc86`).
-  - **T1 ✅ 코드 완료(눈확인 대기)** — `MiganOnnxProvider`(onnxruntime-web WebGPU→WASM, **마스크 극성 반전**), 모델 Cache Storage 1회 다운로드+진행률, `TieredInpaintProvider` 폴백+라벨, 고품질 지우개 토글·발견성 힌트, MI-GAN 크레딧(NOTICE). **검증선 통과: 336 그린 + 빌드**(`2c64320`). 단위 테스트 신규 5(반전·roundtrip·폴백·전부실패·모델캐시). **→ 실물 눈확인 1회 대기**(서버 :3000 가동).
+  - **T1 🔧 눈확인 1차 불통과→수정(재확인 대기)** — 1차: 진행률 없이 순식간+흰 패치 = **조용한 폴백**(MI-GAN 미실행). **근본원인 재현·확정**: `numThreads=1` → onnxruntime-web 이 **asyncify wasm 빌드** 요구하나 `public/ort/` 에 `asyncify.*` 누락 → 404 → 세션 실패. **수정**: (a) `scripts/copy-ort-runtime.mjs`(prebuild)로 전 변형 복사 자동화(재발 방지), (b) 폴백 사유·**실제 실행 엔진 라벨** UI 표면화(스펙 위반 2건), (c) 회귀 가드 `inpaint-fallback-surface`(실브라우저 강제실패→UI 사유). **검증: migan 성공경로 재현(label=migan) + 337 그린 + 빌드**(`751bc66`). **→ 재눈확인 대기**(서버 :3000 최신빌드). 기대: 첫 실행 다운로드 진행률 / 페이지당 ~1초(WebGPU) / 지운 자리 격자 복원.
   - **T2 ⬜** ClipDrop BYOK 무상태 프록시(다음).
 - 스펙 조건 10건 반영, Phase별 검증선(그린+빌드) + GATE 갱신(고정 URL).
 - **T2=ClipDrop Cleanup**(erase형, 저환각). generative 배제. 무상태 프록시(키 헤더 전용·미저장·로그 위생), 에러 크게 표면화. Stability=2순위.
