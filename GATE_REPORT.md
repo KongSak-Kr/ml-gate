@@ -1,6 +1,6 @@
 # GATE REPORT — 2026-07-19 (Opus 모드 O)
 
-## ★★ 인페인팅 서비스화 3계층 — 프로토타입 조건부 통과·본구현 착수 (2026-07-20)
+## ★★ 인페인팅 서비스화 3계층 — T0·T1·T2 코드 완료(T2 353그린+빌드, 실키 눈확인 선택·병합 대기) (2026-07-22)
 
 서비스화 전제로 인페인팅을 **무료 기본 + BYOK 2단(+실패 폴백)** 재설계. 조사→설계→프로토타입 **게이트 조건부 통과** → 본구현 착수.
 
@@ -11,9 +11,32 @@
 - **본구현 진행**(브랜치 `feat/inpaint-tiers`):
   - **T0 ✅** `MockInpaintProvider`→`BasicFillProvider` 개명(빌드 통과, `adefc86`).
   - **T1 ✅ 눈확인 통과·main 병합** — MI-GAN(마스크 반전·모델 캐시·진행률·토글·힌트·크레딧) + `TieredInpaintProvider` 폴백. **1차 불통과(조용한 폴백)=근본원인 asyncify wasm 누락** → prebuild 복사 자동화(`scripts/copy-ort-runtime.mjs`) + 폴백 사유·실제 엔진 라벨 UI 표면화 + 회귀 가드 `inpaint-fallback-surface`. **재눈확인 통과**(지운 자리 격자 질감 연속, MI-GAN 라벨=실행 증거, 폴백 문구 없음). **main `--no-ff` 병합**(`fc67aed`, **337 그린 + 빌드**, origin push).
-  - **T2 ⬜ 다음 착수** — ClipDrop BYOK 무상태 프록시. **컨텍스트**: 계획 `docs/superpowers/plans/2026-07-20-inpainting-tiers-implementation.md` Phase T2(Task 2.1~2.5), 스펙 §6·§7. 구현: `ByokKeyStore`(localStorage, `Capability='inpaint'`) → `CloudEraseProvider`(ClipDrop `x-api-key`, 에러 매핑 키무효/크레딧소진/업스트림) → 무상태 프록시 `src/app/api/inpaint-cloud/route.ts`(**헤더 키·서버 미저장·로그 위생 가드**, Next 16 라우트는 `node_modules/next/dist/docs` 확인) → `ByokSettings` UI(정직 문구·발급 링크) → 팩토리에 clipdrop 티어 **최상위** 추가(키 있을 때). Stability=2순위 기록만. 테스트=UI/store seam(`devSeams __inpaint`). BYOK 에러는 특히 크게 표면화(사용자 돈). **feat 브랜치에서 TDD, Phase 검증선(그린+빌드) 후 GATE 갱신·병합.**
+  - **T2 ✅ 코드 완료·계약 검증(353 그린 + 빌드) → 실키 눈확인(선택)·main 병합 대기** (2026-07-22, 브랜치 `feat/inpaint-byok`, origin push). ClipDrop BYOK 무상태 프록시. Task 2.1~2.5 전부 TDD 완료(신규 테스트 16건):
+    - **2.1 `ByokKeyStore`**(`src/lib/byok/keyStore.ts`) — localStorage `byok:<cap>`, 키 정규화(공백=없음), `hasByokKey` 게이팅. 가드 `byok-keystore`(2).
+    - **2.2 `CloudEraseProvider`**(`src/lib/providers/inpaint/cloudErase.ts`) — 프록시 호출 + 상태→사용자 언어 에러(`ByokError`): 401/403=키무효, 402=크레딧소진, 그외=업스트림. **마스크 무반전**(ClipDrop 흰=제거 = 앱 관례 일치, MI-GAN 과 대조). 키 없으면 네트워크 없이 즉시 표면화. 가드 `byok-error-surface`(6).
+    - **2.3 무상태 프록시** `src/app/api/inpaint-cloud/route.ts` — 키 **x-api-key 헤더 전용**→업스트림 헤더로만, **서버 미저장**, 키 헤더 없으면 400 단락(오픈릴레이·낭비 방지, 업스트림 미호출). **로그 위생**=`proxyLogLine`(key 파라미터 부재→구조적 누출 불가). 순수 계약(`buildUpstreamRequest`/`classifyStatus`) 공유. 가드 `inpaint-cloud-proxy`(5: 405·400 라우트 + 헤더전용·로그위생·상태분류 순수).
+    - **2.4 `ByokSettings` UI**(`src/components/panels/ByokSettings.tsx`, InpaintControls 내) — 정직 문구("브라우저에만 저장·서버 미저장"), ClipDrop 발급 링크, password 입력·저장/삭제, 원문 재노출 안 함. 가드 `byok-settings-ui`(1).
+    - **2.5 팩토리 통합** — `getInpaintProvider`: 키 있으면 clipdrop **최상위**(> migan 토글 > basic-fill). 가드 `byok-factory`(2).
+    - **자율 결정**: DECISIONS 2026-07-22(마스크 무반전·에러 택소노미·mode='quality'·헤더전용·로그위생 구조화·테스트 분해). **배포 체크리스트(미구현)**: 프록시 origin 체크·마스크 grey 임계화(하드엣지 가정). **남은 것**: 실키 눈확인(선택) + main `--no-ff` 병합(사용자 게이트).
 - 스펙 조건 10건 반영, Phase별 검증선(그린+빌드) + GATE 갱신(고정 URL).
 - **T2=ClipDrop Cleanup**(erase형, 저환각). generative 배제. 무상태 프록시(키 헤더 전용·미저장·로그 위생), 에러 크게 표면화. Stability=2순위.
+
+### T2 눈확인 체크리스트 (2026-07-22 — 실키 필요/불필요 구분)
+
+> 목킹 테스트로 계약은 이미 검증됨(353 그린). 아래는 실물 UI 확인. **실키 없이 되는 것(A)만으로 부분 검증 가능** — 키 발급 원치 않으면 A만, 실키 확인(B)은 보류 가능.
+
+**A. 실키 불필요 (키 없이 확인)**
+1. **UI 발견성**: 에디터 인페인팅 패널에 "클라우드 지우개 (ClipDrop, 내 키)" 접이식 섹션이 보이고 펼치면 정직 문구·발급 링크·키 입력칸이 나오는가.
+2. **정직 문구**: "키는 이 브라우저에만 저장됩니다. 서버는 요청을 ClipDrop 으로 전달만 하고 키를 저장하지 않습니다" 노출.
+3. **키 저장/삭제 왕복**: 아무 문자열이나 입력→저장 → "키 저장됨" 배지 + 입력칸 비워짐(원문 재노출 안 함) → 삭제 → 배지 사라짐.
+4. **무효 키 에러 표면화(실호출)**: 가짜 키 저장 후 전체 재생성 → clipdrop 이 401/403 로 실패 → **폴백 발생 안내(빨간 문구)에 "ClipDrop 실패 — 사유: API 키가 유효하지 않습니다…"** 가 뜨고 기본 채움으로 폴백(라벨=basic-fill). (실제 ClipDrop 로 무효키 1콜 감 — 과금 없음.)
+5. **프록시 미저장/헤더 전용**: (선택) devtools Network 에서 `/api/inpaint-cloud` 요청이 `x-api-key` 헤더로 나가고 URL/쿼리에 키가 없는지.
+
+**B. 실키 필요 (ClipDrop 키 발급 시에만)**
+6. **클라우드 실행**: 유효 ClipDrop 키 입력→저장 → 격자/무늬 배경 페이지 전체 재생성 → 지운 자리가 basic-fill(단색)·MI-GAN 보다 깨끗한가(배경 무늬 자연 복원). 라벨=ClipDrop(실행 증거, 폴백 문구 없음).
+7. **크레딧 표시(선택)**: 소진 시 402 → "크레딧이 소진되었습니다" 안내로 폴백되는지(크레딧 다 쓸 때만).
+
+> 키 발급 없이 A(1~5)만 통과해도 계약·UI·에러표면화는 확인됨. B 는 실제 지우개 품질 우위 확인용(보류 가능).
 
 > **채널 무결성(2026-07-19 확정·해결)**: push 정상(로컬==원격). 게이트가 옛 보고에 멈춘 원인 = `/main/` raw URL 반복조회가 **첫 결과 캐시에 고정**. 해결 = 매 push마다 **커밋 고정 raw URL** 발급(캐시 우회). 완료 정의 = push + ls-remote 해시 + 고정 URL.
 
